@@ -98,17 +98,11 @@ Este projeto está licenciado sob a Licença MIT.
 
 ## Autor
 
-**Lucas Catão de Moraes**  
-Dolutech
+**[Lucas Catão de Moraes](https://cataodemoraes.com)**  
+[Dolutech](https://dolutech.com)
 
 ---
 
 Obrigado por usar o Dolutech Automatic Certificate System! Acesse dolutech.com para saber mais sobre nossas soluções de tecnologia e cibersegurança.
-"""
 
-# Saving the content to a README.md file
-file_path = "/mnt/data/README_DACS.md"
-with open(file_path, "w") as file:
-    file.write(readme_partial_content_clean)
 
-file_path
