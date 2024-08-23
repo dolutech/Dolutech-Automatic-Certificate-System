@@ -44,8 +44,9 @@ chmod +x dacs.sh
 
 Agora você pode executar o script para iniciar o DACS:
 
+```bash
 ./dacs.sh
-
+```
 ## Utilização
 
 Após iniciar o script, você verá um menu interativo com as seguintes opções:
