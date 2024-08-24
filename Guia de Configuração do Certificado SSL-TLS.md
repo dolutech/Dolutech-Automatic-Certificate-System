@@ -12,16 +12,4 @@ Configuração no Apache
 Localize o Virtual Host: Abra o arquivo de configuração do Virtual Host do seu domínio. Normalmente, esses arquivos estão localizados em /etc/apache2/sites-available/ ou /etc/httpd/conf.d/.
 
 Edite o Virtual Host: Adicione ou modifique as seguintes diretivas dentro do bloco <VirtualHost *:443> para configurar o SSL:
-'''bash
-<VirtualHost *:443>
-    ServerName exemplodominio.com
-    DocumentRoot /var/www/html
 
-    SSLEngine on
-    SSLCertificateFile /caminho/para/Dolutech-Automatic-Certificate-System/.dolutech/dacs.sh/.acme.sh/exemplodominio.com/fullchain.cer
-    SSLCertificateKeyFile /caminho/para/Dolutech-Automatic-Certificate-System/.dolutech/dacs.sh/.acme.sh/exemplodominio.com/exemplodominio.com.key
-    SSLCertificateChainFile /caminho/para/Dolutech-Automatic-Certificate-System/.dolutech/dacs.sh/.acme.sh/exemplodominio.com/ca.cer
-
-    # Outras configurações...
-</VirtualHost>
-'''
