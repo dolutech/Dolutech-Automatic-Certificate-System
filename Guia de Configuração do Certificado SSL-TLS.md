@@ -1,7 +1,7 @@
-##Guia de Configuração do Certificado SSL/TLS
+# Guia de Configuração do Certificado SSL/TLS
 Este guia explica como configurar o certificado SSL/TLS gerado pelo Dolutech Automatic Certificate System (DACS) em servidores web populares, como Apache e Nginx, utilizando a estrutura de diretórios do DACS.
 
-##Estrutura dos Arquivos Gerados
+## Estrutura dos Arquivos Gerados
 Após emitir o certificado usando o DACS, os seguintes arquivos serão gerados na pasta correspondente ao domínio:
 
 Chave Privada: Dolutech-Automatic-Certificate-System/.dolutech/dacs.sh/.acme.sh/exemplodominio.com/exemplodominio.com.key
