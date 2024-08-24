@@ -64,3 +64,38 @@ server {
 - **ssl_certificate_key:** O caminho para o arquivo exemplodominio.com.key.
 - **ssl_trusted_certificate:** O caminho para o arquivo ca.cer.
 - **Teste a Configuração:** Antes de reiniciar o Nginx, teste a configuração para garantir que não há erros:
+
+```bash
+sudo nginx -t
+```
+
+Reinicie o Nginx: Se o teste foi bem-sucedido, reinicie o Nginx para aplicar as configurações:
+
+```bash
+sudo systemctl restart nginx
+```
+
+## Configuração em Outros Servidores
+
+Para outros servidores web, como LiteSpeed, Caddy, etc., o processo é semelhante:
+
+Localize o arquivo de configuração do servidor.
+Defina as diretivas que apontam para os arquivos do certificado (fullchain.cer), chave privada (exemplodominio.com.key) e cadeia de certificados (ca.cer).
+Reinicie o servidor para aplicar as configurações.
+
+## Verificação do Certificado
+
+Após configurar o certificado, é importante verificar se ele foi aplicado corretamente:
+
+Verifique no Navegador: Acesse o seu domínio com https://. O navegador deve exibir um cadeado indicando que a conexão é segura.
+
+Ferramentas Online: Use ferramentas como SSL Labs SSL Test para verificar a configuração do SSL e identificar possíveis problemas.
+
+## Renovação de Certificados
+
+O DACS permite configurar a renovação automática dos certificados. A cada 89 dias, o certificado será automaticamente renovado e os arquivos serão atualizados. Após a renovação, é importante reiniciar o servidor web para que as novas configurações sejam aplicadas.
+
+## Considerações Finais
+Garantir que o certificado SSL/TLS esteja configurado corretamente é essencial para proteger as comunicações entre o servidor e os visitantes do site. Este guia oferece as etapas básicas para configurar os certificados gerados pelo DACS nos servidores Apache, Nginx e outros populares.
+
+
