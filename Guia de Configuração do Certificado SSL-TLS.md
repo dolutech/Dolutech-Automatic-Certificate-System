@@ -30,7 +30,37 @@ Edite o Virtual Host: Adicione ou modifique as seguintes diretivas dentro do blo
 - **SSLCertificateFile:** O caminho para o arquivo fullchain.cer.
 - **SSLCertificateKeyFile:** O caminho para o arquivo exemplodominio.com.key.
 - **SSLCertificateChainFile:** O caminho para o arquivo ca.cer.
-Habilitar o Módulo SSL: Se ainda não estiver habilitado, execute o comando para habilitar o módulo SSL:
+
+## Habilitar o Módulo SSL: Se ainda não estiver habilitado, execute o comando para habilitar o módulo SSL:
+
 ```bash
 sudo a2enmod ssl
 ```
+
+## Reinicie o Apache: Após fazer as alterações, reinicie o Apache para aplicar as configurações:
+
+```bash
+sudo systemctl restart apache2
+```
+## Configuração no Nginx
+- **Localize o Bloco de Servidor:** Abra o arquivo de configuração do Nginx para o seu domínio. Normalmente, esses arquivos estão localizados em /etc/nginx/sites-available/ ou /etc/nginx/conf.d/.
+- **Edite o Bloco de Servidor:** Adicione ou modifique as seguintes diretivas dentro do bloco server para configurar o SSL:
+
+```bash
+server {
+    listen 443 ssl;
+    server_name exemplodominio.com;
+
+    ssl_certificate /caminho/para/Dolutech-Automatic-Certificate-System/.dolutech/dacs.sh/.acme.sh/exemplodominio.com/fullchain.cer;
+    ssl_certificate_key /caminho/para/Dolutech-Automatic-Certificate-System/.dolutech/dacs.sh/.acme.sh/exemplodominio.com/exemplodominio.com.key;
+    ssl_trusted_certificate /caminho/para/Dolutech-Automatic-Certificate-System/.dolutech/dacs.sh/.acme.sh/exemplodominio.com/ca.cer;
+
+    root /var/www/html;
+
+    # Outras configurações...
+}
+```
+- **ssl_certificate:** O caminho para o arquivo fullchain.cer.
+- **ssl_certificate_key:** O caminho para o arquivo exemplodominio.com.key.
+- **ssl_trusted_certificate:** O caminho para o arquivo ca.cer.
+- **Teste a Configuração:** Antes de reiniciar o Nginx, teste a configuração para garantir que não há erros:
