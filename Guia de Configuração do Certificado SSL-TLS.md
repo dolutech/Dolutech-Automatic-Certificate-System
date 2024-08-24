@@ -27,3 +27,10 @@ Edite o Virtual Host: Adicione ou modifique as seguintes diretivas dentro do blo
     # Outras configurações...
 </VirtualHost>
 ```
+- **SSLCertificateFile:** O caminho para o arquivo fullchain.cer.
+- **SSLCertificateKeyFile:** O caminho para o arquivo exemplodominio.com.key.
+- **SSLCertificateChainFile:** O caminho para o arquivo ca.cer.
+Habilitar o Módulo SSL: Se ainda não estiver habilitado, execute o comando para habilitar o módulo SSL:
+```bash
+sudo a2enmod ssl
+```
