@@ -6,6 +6,7 @@
 # Website: https://dolutech.com
 # Versao: 1.0.0 - Baseado no Acme.sh
 # ===========================================================
+# Logs: arquivo principal em $LOG_FILE e logs por operacao em $LOG_DIR/<operacao>_<dominio>_<timestamp>.log
 
 # Configuracao do Ambiente
 VERSION="1.0.0"
@@ -14,47 +15,172 @@ DEFAULT_INSTALL_HOME="$HOME/.dolutech/$PROJECT_NAME"
 CERT_DIR="$DEFAULT_INSTALL_HOME/certs"
 ACME_SH="$DEFAULT_INSTALL_HOME/acme.sh"
 ACME_HOME="$DEFAULT_INSTALL_HOME/.acme.sh"
+LOG_DIR="$DEFAULT_INSTALL_HOME/logs"
 LOG_FILE="$DEFAULT_INSTALL_HOME/dacs.log"
 CRON_FILE="$DEFAULT_INSTALL_HOME/dacs_cron.log"
+MAX_LOG_SIZE=$((1024 * 1024)) # 1MB por arquivo
+MAX_LOG_BACKUPS=5
 CA_ZEROSSL="https://acme.zerossl.com/v2/DV90"
 CA_LETSENCRYPT="https://acme-v02.api.letsencrypt.org/directory"
+RELOAD_CMD="${RELOAD_CMD:-systemctl reload nginx}"
+ACME_DOWNLOAD_URL="https://get.acme.sh"
+
+# Rotacao simples de logs
+rotate_log_file() {
+    FILE="$1"
+    [ ! -f "$FILE" ] && return
+
+    FILE_SIZE=$(wc -c < "$FILE")
+    if [ "$FILE_SIZE" -lt "$MAX_LOG_SIZE" ]; then
+        return
+    fi
+
+    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    ROTATED_FILE="${FILE}.${TIMESTAMP}"
+    mv "$FILE" "$ROTATED_FILE"
+    touch "$FILE"
+
+    BACKUPS=$(ls -1t "${FILE}."* 2>/dev/null | tail -n +$((MAX_LOG_BACKUPS + 1)))
+    if [ -n "$BACKUPS" ]; then
+        echo "$BACKUPS" | xargs rm -f --
+    fi
+}
+
+# Funcao para logar as acoes
+log_action() {
+    rotate_log_file "$LOG_FILE"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+}
+
+# Cria arquivo de log especifico por operacao
+create_operation_log() {
+    OPERATION="$1"
+    DOMAIN="$2"
+    TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+    LOG_PATH="$LOG_DIR/${OPERATION}_${DOMAIN}_${TIMESTAMP}.log"
+    echo "Operacao: $OPERATION" > "$LOG_PATH"
+    echo "Dominio: $DOMAIN" >> "$LOG_PATH"
+    echo "Horario: $(date +'%Y-%m-%d %H:%M:%S')" >> "$LOG_PATH"
+    echo "----------------------------------------" >> "$LOG_PATH"
+    echo "$LOG_PATH"
+}
 
 # Instalacao do acme.sh se nao estiver presente
 install_acme_sh() {
-    if [ ! -f "$ACME_SH" ]; then
-        echo "Instalando acme.sh..."
-        mkdir -p "$ACME_HOME"
-        curl https://get.acme.sh | sh -s email=myemail@example.com --home "$ACME_HOME"
-        mv "$ACME_HOME/acme.sh" "$ACME_SH"
+    if [ -f "$ACME_SH" ]; then
+        return
     fi
+
+    if ! command -v curl >/dev/null 2>&1; then
+        echo "A ferramenta 'curl' e necessaria para instalar o acme.sh."
+        exit 1
+    fi
+
+    echo "Instalando acme.sh com verificacao basica..."
+    read -p "Informe o e-mail para registrar no acme.sh (pressione Enter para usar um e-mail generico): " ACME_EMAIL
+    [ -z "$ACME_EMAIL" ] && ACME_EMAIL="admin@example.com"
+
+    mkdir -p "$ACME_HOME"
+    TEMP_INSTALLER=$(mktemp)
+
+    if ! curl -fL "$ACME_DOWNLOAD_URL" -o "$TEMP_INSTALLER"; then
+        echo "Falha ao baixar o instalador do acme.sh."
+        exit 1
+    fi
+
+    DOWNLOAD_CHECKSUM=$(sha256sum "$TEMP_INSTALLER" | awk '{print $1}')
+    log_action "acme.sh baixado. SHA256=${DOWNLOAD_CHECKSUM}"
+
+    if sh "$TEMP_INSTALLER" --home "$ACME_HOME" --accountemail "$ACME_EMAIL"; then
+        mv "$ACME_HOME/acme.sh" "$ACME_SH"
+        chmod +x "$ACME_SH"
+        log_action "acme.sh instalado com sucesso usando email $ACME_EMAIL."
+    else
+        log_action "Falha ao instalar acme.sh com email $ACME_EMAIL."
+        echo "Erro ao instalar acme.sh. Verifique os logs."
+        exit 1
+    fi
+
+    rm -f "$TEMP_INSTALLER"
 }
 
 # Inicializa o ambiente
 init_env() {
     mkdir -p "$DEFAULT_INSTALL_HOME"
     mkdir -p "$CERT_DIR"
+    mkdir -p "$LOG_DIR"
     touch "$LOG_FILE"
     touch "$CRON_FILE"
     install_acme_sh
     echo "Ambiente inicializado para $PROJECT_NAME versao $VERSION"
 }
 
-# Funcao para logar as acoes
-log_action() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
+# Permite escolher metodo de validacao
+select_validation_method() {
+    echo "Escolha o metodo de validacao:"
+    echo "1. Webroot (customizavel)"
+    echo "2. Standalone"
+    echo "3. DNS (fornecedor configurado no acme.sh)"
+    read -p "Opcao (1/2/3): " VALIDATION_OPTION
+
+    case "$VALIDATION_OPTION" in
+        1)
+            read -p "Informe o caminho do webroot [/var/www/html]: " WEBROOT_PATH
+            [ -z "$WEBROOT_PATH" ] && WEBROOT_PATH="/var/www/html"
+            if [ ! -d "$WEBROOT_PATH" ]; then
+                echo "Webroot informado nao existe: $WEBROOT_PATH"
+                return 1
+            fi
+            VALIDATION_ARGS="--webroot $WEBROOT_PATH"
+            VALIDATION_DESC="webroot:$WEBROOT_PATH"
+            ;;
+        2)
+            VALIDATION_ARGS="--standalone"
+            VALIDATION_DESC="standalone"
+            ;;
+        3)
+            read -p "Informe o provedor DNS configurado (ex: dns_cf): " DNS_PROVIDER
+            if [ -z "$DNS_PROVIDER" ]; then
+                echo "Fornecedor DNS nao informado."
+                return 1
+            fi
+            VALIDATION_ARGS="--dns $DNS_PROVIDER"
+            VALIDATION_DESC="dns:$DNS_PROVIDER"
+            ;;
+        *)
+            echo "Opcao invalida."
+            return 1
+            ;;
+    esac
+
+}
+
+# Executa comando com log dedicado
+run_acme_command() {
+    COMMAND="$1"
+    LOG_PATH="$2"
+    sh -c "$COMMAND" >> "$LOG_PATH" 2>&1
 }
 
 # Funcao para emitir certificado com Let's Encrypt
 issue_certificate_letsencrypt() {
     read -p "Insira o dominio para o certificado (exemplo: exemplo.com) ou digite 'v' para voltar: " DOMAIN
     [ "$DOMAIN" = "v" ] && return
-    if "$ACME_SH" --issue --server "$CA_LETSENCRYPT" -d "$DOMAIN" --webroot /var/www/html --home "$ACME_HOME"; then
+    if ! select_validation_method; then
+        read -p "Pressione v para voltar ao menu..." response
+        return
+    fi
+
+    OP_LOG=$(create_operation_log "issue_letsencrypt" "$DOMAIN")
+    COMMAND="$ACME_SH --issue --server $CA_LETSENCRYPT -d $DOMAIN $VALIDATION_ARGS --home $ACME_HOME"
+
+    if run_acme_command "$COMMAND" "$OP_LOG"; then
         organize_certificates "$DOMAIN"
         show_certificate_paths "$DOMAIN"
-        log_action "Certificado emitido com sucesso para $DOMAIN."
+        log_action "Certificado emitido com sucesso para $DOMAIN usando $VALIDATION_DESC. Log: $OP_LOG"
         echo "Certificado emitido com sucesso!"
     else
-        log_action "Erro ao emitir certificado para $DOMAIN."
+        log_action "Erro ao emitir certificado para $DOMAIN usando $VALIDATION_DESC. Verifique $OP_LOG"
         echo "Erro ao emitir certificado para $DOMAIN."
     fi
     read -p "Pressione v para voltar ao menu..." response
@@ -64,19 +190,27 @@ issue_certificate_letsencrypt() {
 issue_certificate_zerossl() {
     read -p "Insira o dominio para o certificado (exemplo: exemplo.com) ou digite 'v' para voltar: " DOMAIN
     [ "$DOMAIN" = "v" ] && return
-    if "$ACME_SH" --issue --server "$CA_ZEROSSL" -d "$DOMAIN" --webroot /var/www/html --home "$ACME_HOME"; then
+    if ! select_validation_method; then
+        read -p "Pressione v para voltar ao menu..." response
+        return
+    fi
+
+    OP_LOG=$(create_operation_log "issue_zerossl" "$DOMAIN")
+    COMMAND="$ACME_SH --issue --server $CA_ZEROSSL -d $DOMAIN $VALIDATION_ARGS --home $ACME_HOME"
+
+    if run_acme_command "$COMMAND" "$OP_LOG"; then
         organize_certificates "$DOMAIN"
         show_certificate_paths "$DOMAIN"
-        log_action "Certificado emitido com sucesso para $DOMAIN."
+        log_action "Certificado emitido com sucesso para $DOMAIN usando $VALIDATION_DESC. Log: $OP_LOG"
         echo "Certificado emitido com sucesso!"
     else
-        log_action "Erro ao emitir certificado para $DOMAIN."
+        log_action "Erro ao emitir certificado para $DOMAIN usando $VALIDATION_DESC. Verifique $OP_LOG"
         echo "Erro ao emitir certificado para $DOMAIN."
     fi
     read -p "Pressione v para voltar ao menu..." response
 }
 
-# Organiza os certificados criando atalhos ao invés de mover
+# Organiza os certificados criando atalhos ao invs de mover
 organize_certificates() {
     DOMAIN="$1"
     DOMAIN_CERT_DIR="$CERT_DIR/$DOMAIN"
@@ -107,7 +241,7 @@ show_certificate_paths() {
 
 # Renovacao de certificado
 renew_certificate() {
-    CERTIFICATES=$(ls -1 "$CERT_DIR")
+    CERTIFICATES=$(ls -1 "$CERT_DIR" 2>/dev/null)
     if [ -z "$CERTIFICATES" ]; then
         echo "Nenhum certificado encontrado para renovacao."
         return
@@ -126,13 +260,15 @@ renew_certificate() {
     DOMAIN=$(echo "$CERT_LIST" | sed -n "${DOMAIN_NUM}p")
 
     if [ -d "$CERT_DIR/$DOMAIN" ]; then
-        if "$ACME_SH" --renew -d "$DOMAIN" --home "$ACME_HOME"; then
+        OP_LOG=$(create_operation_log "renew" "$DOMAIN")
+        COMMAND="$ACME_SH --renew -d $DOMAIN --home $ACME_HOME"
+        if run_acme_command "$COMMAND" "$OP_LOG"; then
             organize_certificates "$DOMAIN"
             show_certificate_paths "$DOMAIN"
-            log_action "Certificado para $DOMAIN renovado com sucesso."
+            log_action "Certificado para $DOMAIN renovado com sucesso. Log: $OP_LOG"
             echo "Certificado para $DOMAIN renovado com sucesso!"
         else
-            log_action "Erro ao renovar certificado para $DOMAIN."
+            log_action "Erro ao renovar certificado para $DOMAIN. Verifique $OP_LOG"
             echo "Erro ao renovar certificado para $DOMAIN."
         fi
     else
@@ -143,7 +279,7 @@ renew_certificate() {
 
 # Remover certificado
 remove_certificate() {
-    CERTIFICATES=$(ls -1 "$CERT_DIR")
+    CERTIFICATES=$(ls -1 "$CERT_DIR" 2>/dev/null)
     if [ -z "$CERTIFICATES" ]; then
         echo "Nenhum certificado encontrado para remocao."
         return
@@ -162,10 +298,12 @@ remove_certificate() {
     DOMAIN=$(echo "$CERT_LIST" | sed -n "${DOMAIN_NUM}p")
 
     if [ -d "$CERT_DIR/$DOMAIN" ]; then
-        # Remover atalhos e diretório no .acme.sh
-        rm -rf "$CERT_DIR/$DOMAIN"
-        rm -rf "$ACME_HOME/${DOMAIN}_ecc"
-        log_action "Certificado para $DOMAIN removido."
+        OP_LOG=$(create_operation_log "remove" "$DOMAIN")
+        {
+            rm -rf "$CERT_DIR/$DOMAIN"
+            rm -rf "$ACME_HOME/${DOMAIN}_ecc"
+        } >> "$OP_LOG" 2>&1
+        log_action "Certificado para $DOMAIN removido. Log: $OP_LOG"
         echo "Certificado para $DOMAIN removido com sucesso."
     else
         echo "Dominio nao encontrado."
@@ -175,7 +313,7 @@ remove_certificate() {
 
 # Configurar renovacao automatica via cron a cada 89 dias
 enable_auto_renewal() {
-    CERTIFICATES=$(ls -1 "$CERT_DIR")
+    CERTIFICATES=$(ls -1 "$CERT_DIR" 2>/dev/null)
     if [ -z "$CERTIFICATES" ]; then
         echo "Nenhum certificado disponivel para ativar renovacao automatica."
         return
@@ -183,20 +321,24 @@ enable_auto_renewal() {
 
     echo "Certificados disponiveis para ativar renovacao automatica:"
     CERT_LIST=$(echo "$CERTIFICATES")
-    
+
     for i in $(seq 1 $(echo "$CERT_LIST" | wc -l)); do
         echo "$i. $(echo "$CERT_LIST" | sed -n "${i}p")"
     done
-    
+
     read -p "Escolha o numero do dominio para ativar a renovacao automatica ou digite 'v' para voltar: " DOMAIN_NUM
     [ "$DOMAIN_NUM" = "v" ] && return
     DOMAIN=$(echo "$CERT_LIST" | sed -n "${DOMAIN_NUM}p")
-    
+
     if [ -d "$CERT_DIR/$DOMAIN" ]; then
-        (crontab -l 2>/dev/null; echo "0 0 */89 * * \"$ACME_SH\" --renew -d \"$DOMAIN\" --home \"$ACME_HOME\" && \"$ACME_SH\" --reloadcmd") | crontab -
+        CRON_COMMAND="$ACME_SH --renew -d $DOMAIN --home $ACME_HOME --reloadcmd \"$RELOAD_CMD\" >> $LOG_FILE 2>&1"
+        CRON_LINE="0 0 */89 * * $CRON_COMMAND"
+        (crontab -l 2>/dev/null | grep -v "$ACME_SH --renew -d $DOMAIN"; echo "$CRON_LINE") | crontab -
         echo "Renovacao automatica ativada para $DOMAIN a cada 89 dias."
-        log_action "Renovacao automatica ativada para $DOMAIN a cada 89 dias."
-        echo "$DOMAIN" >> "$CRON_FILE"
+        log_action "Renovacao automatica ativada para $DOMAIN a cada 89 dias. Reload: $RELOAD_CMD"
+        if ! grep -q "^$DOMAIN$" "$CRON_FILE" 2>/dev/null; then
+            echo "$DOMAIN" >> "$CRON_FILE"
+        fi
     else
         echo "Dominio nao encontrado."
     fi
@@ -217,6 +359,7 @@ view_logs() {
 # Limpar logs
 clear_logs() {
     > "$LOG_FILE"
+    rm -f "$LOG_DIR"/*.log.* "$LOG_DIR"/*.log
     echo "Logs limpos."
     read -p "Pressione v para voltar ao menu..." response
 }
@@ -247,8 +390,8 @@ view_auto_renewals() {
 # Desativar renovacao automatica
 deactivate_auto_renewal() {
     DOMAIN="$1"
-    crontab -l | grep -v "$DOMAIN" | crontab -
-    sed -i "/$DOMAIN/d" "$CRON_FILE"
+    crontab -l 2>/dev/null | grep -v "$ACME_SH --renew -d $DOMAIN" | crontab -
+    sed -i "/^$DOMAIN$/d" "$CRON_FILE"
     echo "Renovacao automatica desativada para $DOMAIN."
     log_action "Renovacao automatica desativada para $DOMAIN."
     read -p "Pressione v para voltar ao menu..." response
