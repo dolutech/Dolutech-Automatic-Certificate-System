@@ -2,108 +2,435 @@
 
 ![Dolutech Logo](https://dolutech.com/wp-content/uploads/2023/02/dolutech-new-logo.png)
 
-## Versão 1.0.0
+## Versão 2.0.0 🚀
 
-O **Dolutech Automatic Certificate System (DACS)** é uma solução automatizada para emissão, renovação e gerenciamento de certificados SSL/TLS usando ACME, compatível com Let's Encrypt e ZeroSSL. Este sistema é baseado no script `acme.sh`, oferecendo uma interface simplificada e intuitiva em português.
+O **Dolutech Automatic Certificate System (DACS)** é uma solução automatizada moderna e completa para emissão, renovação e gerenciamento de certificados SSL/TLS usando ACME. Compatível com múltiplas Certificate Authorities incluindo Let's Encrypt, ZeroSSL, Buypass e Google Trust Services.
 
-## Características Principais
+## ✨ Novidades da Versão 2.0.0
 
-- **Compatibilidade**: Suporte para Let's Encrypt e ZeroSSL.
-- **Automação**: Emissão, renovação e remoção automáticas de certificados.
-- **Gerenciamento Simplificado**: Menu interativo para gerenciar certificados e configurações.
-- **Logs**: Sistema de logs para monitorar ações e eventos.
-- **Renovação Automática**: Configuração de renovação automática dos certificados via `cron`.
+### Melhorias de Interface
+- **Interface colorida e moderna** com ícones e melhor organização visual
+- **Menu reorganizado** em categorias lógicas (Certificados, Automação, Backup/Deploy, Sistema)
+- **Mensagens de status claras** com indicadores visuais (✓, ✗, ⚠, ℹ)
+- **Modo CLI não-interativo** para automação e scripts
 
-## Requisitos
+### Novas Funcionalidades
 
-- **Sistema Operacional**: Linux/Unix
-- **Dependências**: `curl`, `sh`, `crontab`
+#### Gerenciamento Avançado de Certificados
+- **Suporte a wildcard** (*.example.com)
+- **Múltiplos domínios** em um único certificado (SAN)
+- **Validação DNS (DNS-01)** além do webroot (HTTP-01)
+- **Modo standalone** para servidores sem webroot
+- **Listagem detalhada** com status de expiração e alertas
+- **Validação robusta** de domínios e emails
 
-## Instalação
+#### Múltiplas Certificate Authorities
+- Let's Encrypt (Produção e Staging)
+- ZeroSSL
+- Buypass (Produção e Teste)
+- Google Trust Services (Produção e Staging)
+
+#### Suporte a DNS Providers
+- Cloudflare
+- AWS Route53
+- DigitalOcean
+- GoDaddy
+- Namecheap
+- E muitos outros via acme.sh
+
+#### Sistema de Backup
+- **Backup automático** ao emitir ou renovar certificados
+- **Rotação de backups** (mantém os 5 mais recentes)
+- **Listagem de backups** por domínio
+- **Backup manual** sob demanda
+
+#### Deploy Automático
+- **Nginx** com configuração SSL/TLS otimizada
+- **Apache** com exemplo de VirtualHost
+- **Deploy personalizado** com comandos customizados
+- **Reload automático** dos servidores web
+
+#### Sistema de Logs Melhorado
+- **Logs separados** (principal e erros)
+- **Rotação automática** (limite de 10MB)
+- **Níveis de log** (INFO, ERROR, WARNING)
+- **Busca nos logs** integrada
+- **Visualização paginada** com less
+
+#### Segurança e Confiabilidade
+- **Validação de entrada** robusta
+- **Tratamento de erros** aprimorado
+- **Modo seguro** com `set -euo pipefail`
+- **Confirmações** para operações destrutivas
+
+## 📋 Requisitos
+
+- **Sistema Operacional**: Linux/Unix/macOS
+- **Dependências**:
+  - `bash` 4.0+
+  - `curl`
+  - `openssl`
+  - `crontab`
+  - `tput` (opcional, para cores)
+  - `tar` e `gzip` (para backups)
+
+## 🚀 Instalação
 
 ### 1. Clone o Repositório
 
-Clone o repositório do GitHub para a sua máquina local:
-
 ```bash
 git clone https://github.com/dolutech/Dolutech-Automatic-Certificate-System.git
-```
-### 2. Navegue até o Diretório
-
-Entre no diretório do projeto clonado:
-```bash
 cd Dolutech-Automatic-Certificate-System
 ```
-### 3. Conceda Permissão de Execução
 
-Conceda permissão de execução ao script `dacs.sh`:
+### 2. Torne o Script Executável
+
 ```bash
 chmod +x dacs.sh
 ```
-### 4. Execute o Script
 
-Agora você pode executar o script para iniciar o DACS:
+### 3. Execute o Script
 
+#### Modo Interativo
 ```bash
 ./dacs.sh
 ```
-## Utilização
 
-Após iniciar o script, você verá um menu interativo com as seguintes opções:
+#### Modo CLI (Não-Interativo)
+```bash
+./dacs.sh help
+```
 
-### Menu Principal
+## 📖 Utilização
 
-1. **Emitir Certificado com Let's Encrypt**: Solicite a emissão de um certificado SSL/TLS para um domínio especificado usando Let's Encrypt.
+### Modo Interativo
 
-2. **Emitir Certificado com ZeroSSL**: Solicite a emissão de um certificado SSL/TLS para um domínio especificado usando ZeroSSL.
+Ao executar `./dacs.sh` sem argumentos, você verá um menu interativo organizado:
 
-3. **Renovar Certificado**: Renove um certificado SSL/TLS já existente.
+```
+╔════════════════════════════════════════════╗
+║   Dolutech Automatic Certificate System   ║
+║            Versao: 2.0.0                   ║
+╚════════════════════════════════════════════╝
 
-4. **Remover Certificado**: Remova um certificado SSL/TLS, apagando todos os arquivos associados e as entradas no `crontab`.
+GERENCIAMENTO DE CERTIFICADOS
+  1. Emitir Certificado
+  2. Listar Certificados
+  3. Renovar Certificado
+  4. Remover Certificado
 
-5. **Ativar Renovação Automática**: Configure a renovação automática de um certificado, agendando a renovação a cada 89 dias via `cron`.
+AUTOMACAO
+  5. Ativar Renovacao Automatica
+  6. Ver Renovacoes Automaticas
 
-6. **Ver Renovações Automáticas**: Veja uma lista de renovações automáticas configuradas e, se necessário, desative alguma.
+BACKUP E DEPLOY
+  7. Fazer Backup de Certificado
+  8. Listar Backups
+  9. Deploy de Certificado
 
-7. **Consultar Logs**: Exiba os logs do sistema para monitorar as atividades de emissão, renovação e remoção de certificados.
+SISTEMA
+  10. Ver Logs
+  11. Limpar Logs
+  0. Sair
+```
 
-8. **Limpar Logs**: Limpe o arquivo de logs.
+### Modo CLI (Linha de Comando)
 
-9. **Sair**: Encerre o script e retorne ao terminal.
+O DACS 2.0 agora suporta execução não-interativa para automação:
 
-### Exemplo de Uso
+#### Comandos Disponíveis
 
-#### Emitindo um Certificado
+```bash
+# Mostrar ajuda
+./dacs.sh help
 
-1. Selecione a opção 1 ou 2 no menu para emitir um certificado com Let's Encrypt ou ZeroSSL.
-2. Insira o domínio desejado, como exemplo.com.
-3. Aguarde a conclusão do processo. O certificado será emitido e os caminhos dos arquivos serão exibidos.
+# Mostrar versão
+./dacs.sh version
 
-#### Configurando Renovação Automática
+# Emitir certificado
+./dacs.sh issue -d example.com -c letsencrypt -w /var/www/html
 
-1. Selecione a opção 5 para ativar a renovação automática.
-2. Escolha o certificado para o qual deseja configurar a renovação.
-3. A renovação será agendada automaticamente.
+# Emitir com DNS (requer variáveis de ambiente configuradas)
+./dacs.sh issue -d example.com --dns cloudflare
 
-## Manutenção
+# Emitir wildcard
+./dacs.sh issue -d "*.example.com" --dns cloudflare
 
-Para garantir que os certificados sejam renovados corretamente, o script configura automaticamente as tarefas no crontab. Recomenda-se verificar os logs periodicamente para garantir que tudo está funcionando conforme o esperado.
+# Emitir em modo standalone
+./dacs.sh issue -d example.com --standalone
 
-## Contribuição
+# Renovar certificado
+./dacs.sh renew -d example.com
 
-Contribuições são bem-vindas! Sinta-se à vontade para abrir issues ou enviar pull requests no repositório do GitHub.
+# Remover certificado
+./dacs.sh remove -d example.com
 
-## Licença
+# Listar certificados
+./dacs.sh list
+```
 
-Este projeto está licenciado sob a Licença GPL.
+#### Opções do Comando Issue
 
-## Autor
+- `-d, --domain DOMAIN` - Domínio do certificado (obrigatório)
+- `-c, --ca CA` - Certificate Authority (padrão: letsencrypt)
+  - Opções: letsencrypt, zerossl, buypass, google
+- `-w, --webroot PATH` - Caminho do webroot para HTTP-01 (padrão: /var/www/html)
+- `--dns PROVIDER` - Provider DNS para DNS-01 challenge
+- `--standalone` - Usar modo standalone
 
-**[Lucas Catão de Moraes](https://cataodemoraes.com)**  
-[Dolutech](https://dolutech.com)
+## 🎯 Exemplos de Uso
+
+### Emitir Certificado com Let's Encrypt (HTTP-01)
+
+```bash
+./dacs.sh issue -d example.com -c letsencrypt -w /var/www/html
+```
+
+### Emitir Certificado Wildcard com DNS
+
+```bash
+# Configure as variáveis de ambiente primeiro
+export CF_Key="sua-api-key"
+export CF_Email="seu@email.com"
+
+./dacs.sh issue -d "*.example.com" --dns cloudflare
+```
+
+### Emitir com Múltiplos Domínios (Modo Interativo)
+
+1. Execute `./dacs.sh` e escolha opção 1
+2. Selecione a CA desejada
+3. Escolha o método de validação
+4. Digite o domínio principal
+5. Quando perguntado, adicione domínios extras (SAN)
+
+### Configurar Renovação Automática
+
+```bash
+# Via CLI
+./dacs.sh enable-auto -d example.com
+
+# Ou modo interativo (opção 5 no menu)
+```
+
+### Fazer Backup Manual
+
+```bash
+# Modo interativo (opção 7)
+./dacs.sh
+# Escolha opção 7 e selecione o domínio
+```
+
+### Deploy para Nginx
+
+1. Execute `./dacs.sh` e escolha opção 9
+2. Selecione o certificado
+3. Escolha opção 1 (Nginx)
+4. Copie a configuração exibida para seu arquivo de configuração
+5. Opcionalmente, recarregue o Nginx automaticamente
+
+## 📁 Estrutura de Diretórios
+
+```
+$HOME/.dolutech/dacs.sh/
+├── certs/                    # Certificados organizados por domínio
+│   └── example.com/
+│       ├── example.com.cer   # Certificado
+│       ├── example.com.key   # Chave privada
+│       ├── fullchain.cer     # Cadeia completa
+│       ├── ca.cer            # Certificado CA
+│       └── metadata.txt      # Informações do certificado
+├── backups/                  # Backups automáticos
+│   └── example.com/
+│       ├── backup_20231201_120000.tar.gz
+│       └── backup_20231215_120000.tar.gz
+├── config/
+│   └── dacs.conf            # Arquivo de configuração
+├── .acme.sh/                # Diretório do acme.sh
+├── dacs.log                 # Log principal
+├── dacs.error.log           # Log de erros
+└── dacs_cron.log            # Registro de renovações automáticas
+```
+
+## ⚙️ Configuração
+
+O arquivo de configuração está localizado em `~/.dolutech/dacs.sh/config/dacs.conf`:
+
+```bash
+# Certificate Authority padrão
+DEFAULT_CA="letsencrypt"
+
+# Método de validação padrão
+DEFAULT_CHALLENGE="webroot"
+
+# Caminho webroot padrão
+DEFAULT_WEBROOT="/var/www/html"
+
+# Backup automático ao emitir/renovar
+AUTO_BACKUP="true"
+
+# Email para notificações (futuro)
+NOTIFICATION_EMAIL=""
+```
+
+## 🔒 Segurança
+
+### Boas Práticas
+
+1. **Proteção de chaves privadas**: Todos os certificados e chaves são armazenados com permissões apropriadas
+2. **Validação de entrada**: Domínios e emails são validados antes do processamento
+3. **Backups automáticos**: Certificados são automaticamente salvos antes de operações destrutivas
+4. **Logs de auditoria**: Todas as operações são registradas com timestamp
+
+### Permissões Recomendadas
+
+```bash
+chmod 700 ~/.dolutech/dacs.sh
+chmod 600 ~/.dolutech/dacs.sh/certs/*/example.com.key
+```
+
+## 🔄 Renovação Automática
+
+O DACS configura renovações automáticas via cron. Por padrão:
+
+- **Frequência**: A cada 60 dias
+- **Método**: Via crontab do usuário
+- **Logs**: Salvos em `dacs.log`
+- **Backup**: Automático após renovação bem-sucedida
+
+Para verificar renovações agendadas:
+```bash
+crontab -l | grep dacs
+```
+
+## 📊 Status de Certificados
+
+O comando de listagem (opção 2 ou `./dacs.sh list`) mostra:
+
+- ✅ **Status: Válido** - Certificado válido com mais de 30 dias
+- ⚠️ **Status: Expira em breve** - Menos de 30 dias até expiração
+- ❌ **Status: EXPIRADO** - Certificado já expirou
+- Dias restantes até expiração
+- Data de emissão
+
+## 🛠️ Troubleshooting
+
+### Problema: "acme.sh não pode ser instalado"
+
+**Solução**: Verifique sua conexão com internet e tente novamente. O script instalará automaticamente.
+
+### Problema: "Falha ao emitir certificado"
+
+**Soluções**:
+1. Verifique se o domínio está apontando para o servidor
+2. Para webroot, confirme que o caminho está correto e acessível
+3. Para DNS, verifique se as credenciais estão corretas
+4. Consulte os logs: `./dacs.sh` → Opção 10
+
+### Problema: DNS Challenge não funciona
+
+**Solução**: Configure as variáveis de ambiente do seu provider:
+
+```bash
+# Cloudflare
+export CF_Key="your-api-key"
+export CF_Email="your@email.com"
+
+# Route53
+export AWS_ACCESS_KEY_ID="your-key-id"
+export AWS_SECRET_ACCESS_KEY="your-secret"
+
+# DigitalOcean
+export DO_API_KEY="your-api-key"
+```
+
+### Problema: Cores não aparecem
+
+**Solução**: Instale `tput` ou use um terminal que suporte cores ANSI.
+
+## 🔄 Atualizando do DACS 1.x para 2.0
+
+A versão 2.0 é compatível com certificados existentes. Simplesmente:
+
+1. Faça backup dos certificados existentes
+2. Substitua o script antigo pelo novo
+3. Execute `./dacs.sh` - o ambiente será atualizado automaticamente
+
+## 🤝 Contribuição
+
+Contribuições são bem-vindas! Para contribuir:
+
+1. Fork o repositório
+2. Crie uma branch para sua feature (`git checkout -b feature/MinhaFeature`)
+3. Commit suas mudanças (`git commit -m 'Adiciona MinhaFeature'`)
+4. Push para a branch (`git push origin feature/MinhaFeature`)
+5. Abra um Pull Request
+
+## 📝 Changelog
+
+### Versão 2.0.0 (2024)
+
+#### Adicionado
+- Interface colorida com melhor UX
+- Modo CLI não-interativo completo
+- Suporte a múltiplas CAs (ZeroSSL, Buypass, Google)
+- Validação DNS (DNS-01) com múltiplos providers
+- Suporte a certificados wildcard
+- Suporte a múltiplos domínios (SAN)
+- Sistema de backup automático
+- Deploy automático para Nginx/Apache
+- Listagem detalhada com status de expiração
+- Sistema de logs melhorado com rotação
+- Validação robusta de entrada
+- Arquivo de configuração
+
+#### Melhorado
+- Menu reorganizado em categorias
+- Tratamento de erros aprimorado
+- Documentação expandida
+- Segurança com modo bash strict
+- Organização de código modular
+
+#### Corrigido
+- Problemas com certificados ECC
+- Rotação de logs
+- Gerenciamento de cron
+- Compatibilidade com diferentes sistemas
+
+### Versão 1.0.0 (2023)
+
+- Lançamento inicial
+- Suporte básico para Let's Encrypt e ZeroSSL
+- Interface interativa simples
+- Renovação manual e automática
+
+## 📄 Licença
+
+Este projeto está licenciado sob a Licença GPL v3 - veja o arquivo [LICENSE.md](LICENSE.md) para detalhes.
+
+## 👤 Autor
+
+**Lucas Catão de Moraes**
+
+- Website: [https://cataodemoraes.com](https://cataodemoraes.com)
+- Empresa: [Dolutech](https://dolutech.com)
+- GitHub: [@dolutech](https://github.com/dolutech)
+
+## 🙏 Agradecimentos
+
+- [acme.sh](https://github.com/acmesh-official/acme.sh) - A base deste sistema
+- Let's Encrypt - Por tornar SSL/TLS acessível a todos
+- Comunidade open source
+
+## 📞 Suporte
+
+Para suporte, visite:
+- Website: [https://dolutech.com](https://dolutech.com)
+- Issues: [GitHub Issues](https://github.com/dolutech/Dolutech-Automatic-Certificate-System/issues)
+- Email: Disponível no website
 
 ---
 
-Obrigado por usar o Dolutech Automatic Certificate System! Acesse dolutech.com para saber mais sobre nossas soluções de tecnologia e cibersegurança.
+**Feito com ❤️ pela [Dolutech](https://dolutech.com)**
 
-
+*Simplificando a segurança web, um certificado por vez.*
